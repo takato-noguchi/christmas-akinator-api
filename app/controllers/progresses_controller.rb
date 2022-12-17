@@ -1,6 +1,14 @@
 class ProgressesController < ApplicationController
-  def new 
-    @progress = Progress.new
+
+  # ここで新しく、進捗開始され質問が出される
+  def new
+    progress = Progress.new
+    if progress.save
+        render json: progress
+    else
+        render json: progress.errors, status: 422
+    end
+    
     current_game = Game.find(params[:game_id])
     @question = Question.next_question(current_game)
   end
@@ -13,22 +21,36 @@ class ProgressesController < ApplicationController
     progress.assign_sequence
     progress.save!
 
+    next_question = Question.next_question(current_game)
+    if next_question.blank?
+
+      current_game.status = 'finished'
+      current_game.result = 'incorrect'
+      current_game.save!
+
+      redirect_to give_up_game_path(current_game)
+      return
+    end  
+
+    render json: progress
+  end
+
     # 絞り込みを実行
     @extract_presents = ExtractionAlgorithm.new(current_game).compute
 
     # 絞り込み結果が0件の場合、ギブアップ画面へ遷移
-    if @extract_comics.count == 0
+    if @extract_presents.count == 0
       redirect_to give_up_game_path(current_game) #リダイレクト先変更
       return
     end
 
     # 絞り込み結果が1件の場合、チャレンジ(正解を当てにいく)へ遷移
     if @extract_presents.count == 1
-      redirect_to challenge_game_path(current_game) # リダイレクト先変更
+      render '' # リダイレクト先変更
       return
     end
 
-    if @extract_comics.count >= 2
+    if @extract_presents.count >= 2
       next_question = Question.next_question(current_game)
       if next_question.blank?
 
@@ -44,7 +66,7 @@ class ProgressesController < ApplicationController
       return
     end
   end
-  
+
   private
 
   def create_params
