@@ -1,6 +1,7 @@
 class GamesController < ApplicationController
 
   def new
+    render json: Present.all
   end
   
   # 新しいゲームがスタートさせる
